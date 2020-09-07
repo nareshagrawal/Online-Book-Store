@@ -1,0 +1,34 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: circleci/openjdk:8-jdk
+    steps:
+      - checkout
+      - run:
+          name: Install AWS CLI
+          command: |
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install
+            aws configure set aws_access_key_id "${ACCESS_KEY}"
+            aws configure set aws_secret_access_key "${SECRET_KEY}"
+            aws configure set region "${REGION}"
+      - run:
+          name: Build WAR
+          command: |
+            mvn clean package
+      - run:
+          name: Build Deployment Artifact
+          command: |
+            cd target/
+            cp lambda-1.0-SNAPSHOT.jar lambda-${CIRCLE_BUILD_NUM}.zip
+            touch 777 output.txt
+            pwd && ls -al
+      - run:
+          name: Upload Artifact to S3 bucket
+          command: aws s3 cp target/lambda-${CIRCLE_BUILD_NUM}.zip s3://${AWS_DEPLOY_BUCKET_NAME}
+      - run:
+          name: updating the lambda function
+          command: |
+            aws lambda update-function-code --function-name  ${FUNCTION_NAME} --zip-file fileb://target/lambda-${CIRCLE_BUILD_NUM}.zip > output.txt

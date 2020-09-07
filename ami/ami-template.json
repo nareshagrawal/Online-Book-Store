@@ -1,0 +1,57 @@
+{
+    "variables": {
+        "aws_access_key": "",
+        "aws_secret_key": "",
+        "aws_region": "",
+        "subnet_id": "",
+        "source_ami": "ami-0ac80df6eff0e70b5",
+        "ssh_username":"ubuntu",
+        "ami_users": "213094423378"
+    },
+    "builders": [
+        {
+            "type": "amazon-ebs",
+            "ami_users": "{{ user `ami_users` }}",
+            "access_key": "{{user `aws_access_key`}}",
+            "secret_key": "{{user `aws_secret_key`}}",
+            "region": "{{user `aws_region`}}",
+            "instance_type": "t2.micro",
+            "subnet_id": "{{user `subnet_id`}}",
+            "source_ami": "{{user `source_ami`}}",
+            "ssh_username": "{{user `ssh_username`}}",
+            "ami_name": "csye6225_a4_{{timestamp}}",
+            "ami_description": "Ubuntu AMI for CSYE 6225",
+            "launch_block_device_mappings": [
+                {
+                    "device_name": "/dev/sda1",
+                    "volume_size": 8,
+                    "volume_type": "gp2",
+                    "delete_on_termination": true
+                }
+            ]
+        }
+    ],
+    "provisioners": [
+        {
+            "type": "shell",
+            "environment_vars": [
+                "FOO=foo"
+            ],
+            "inline": [
+            	"sleep 30",
+                "sudo apt-get update",
+                "sudo apt-get install openjdk-8-jdk -y",
+                "sudo apt-get update",
+                "sudo apt-get install ruby -y",
+                "sudo apt-get install wget",
+                "cd /home/ubuntu",
+                "wget https://aws-codedeploy-{{user `aws_region`}}.s3.{{user `aws_region`}}.amazonaws.com/latest/install",
+                "chmod +x ./install",
+                "sudo ./install auto",
+                "wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb",
+		        "sudo dpkg -i -E ./amazon-cloudwatch-agent.deb",
+                "sudo systemctl enable amazon-cloudwatch-agent.service"
+            ]
+        }
+    ]
+}

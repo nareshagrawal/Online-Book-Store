@@ -1,0 +1,77 @@
+version: 2
+jobs:
+  pr_check:
+    docker:
+      - image: circleci/openjdk:8-jdk
+    steps:
+      - checkout
+      - run:
+          name: Build WAR
+          command: |
+            mvn clean package
+      - run:
+          name: Running Test Cases
+          command: |
+            mvn test
+          
+  build:
+    docker:
+      - image: circleci/openjdk:8-jdk
+    steps:
+      - checkout
+      - run:
+          name: Build WAR
+          command: |
+            mvn clean package
+      - run:
+          name: Running test
+          command: |
+            mvn test
+      - run:
+          name: Install Packages
+          command: sudo apt-get update && sudo apt-get install wget zip unzip -y
+      - run:
+          name: Install AWS CLI && Configure
+          command: |
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install
+            sudo apt-get install less
+            aws configure set aws_access_key_id "${ACCESS_KEY}"
+            aws configure set aws_secret_access_key "${SECRET_KEY}"
+            aws configure set region "${REGION}"
+      - run:
+          name: Build Deployment Artifact
+          command: |
+            mkdir package
+            pwd && ls -al
+            mv codedeploy/applicationstart.sh package/
+            mv codedeploy/beforeinstall.sh package/
+            mv codedeploy/afterinstall.sh package/
+            mv codedeploy/amazon-cloudwatch-agent.json package/
+            mv codedeploy/restartwebapp.service package/
+            mv target/webapps-0.0.1-SNAPSHOT.war package/
+            mv appspec.yml package/
+            cd package
+            pwd && ls -al
+            zip application-${CIRCLE_BUILD_NUM}.zip webapps-0.0.1-SNAPSHOT.war applicationstart.sh beforeinstall.sh appspec.yml afterinstall.sh amazon-cloudwatch-agent.json restartwebapp.service
+            pwd && ls -al
+      - run:
+          name: Upload Artifact to S3 bucket
+          command: aws s3 cp package/application-${CIRCLE_BUILD_NUM}.zip s3://${AWS_DEPLOY_BUCKET_NAME}
+      - run:
+          name: Create Deployment
+          command: aws deploy create-deployment --application-name ${APPLICATION_NAME} --deployment-config-name CodeDeployDefault.AllAtOnce --deployment-group-name ${DEPLOYMENT_GROUP_NAME} --s3-location bucket=${AWS_DEPLOY_BUCKET_NAME},bundleType=zip,key=application-${CIRCLE_BUILD_NUM}.zip --region ${REGION}
+
+workflows:
+  version: 2
+  pr-check:
+    jobs:
+      - pr_check
+
+  build_deploy:
+    jobs:
+      - build:
+          filters:
+            branches:
+              only: master

@@ -1,0 +1,37 @@
+version: 2
+jobs:
+ build:
+  docker:
+   - image: circleci/python:2.7-jessie
+  steps:
+   - checkout
+   - run:
+      name: Install packages
+      command: sudo apt-get update && sudo apt-get install wget zip unzip -y
+   - run:
+      name: Install AWS CLI
+      command: |
+       curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+       unzip awscliv2.zip
+       sudo ./aws/install
+   - run:
+      name: Download packer
+      command: |
+       wget -q https://releases.hashicorp.com/packer/1.3.4/packer_1.3.4_linux_amd64.zip 
+       unzip packer*.zip  
+       chmod +x packer
+       echo "export PATH=$PATH:~/packer/" >> ~/.bashrc
+   - run:
+      name: Validate Packer Template
+      command: ./packer validate ami-template.json
+   - run:
+      command: pwd && ls
+   - run:
+      name: Build AMI
+      command: |
+       ./packer build \
+       -var "aws_access_key=${ACCESS_KEY}" \
+       -var "aws_secret_key=${SECRET_KEY}" \
+       -var "aws_region=${REGION}" \
+       -var "subnet_id=${SUBNET_ID}" \
+       ami-template.json

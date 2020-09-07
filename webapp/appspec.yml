@@ -1,0 +1,21 @@
+version: 0.0
+os: linux
+files:
+  - source: /
+    destination: /var
+  - source: amazon-cloudwatch-agent.json
+    destination: /opt
+hooks:
+  BeforeInstall:
+    - location: ./beforeinstall.sh
+      timeout: 180
+      runas: ubuntu
+  ApplicationStart:
+    - location: ./applicationstart.sh
+      timeout: 400
+      runas: ubuntu
+  AfterInstall:
+    - location: ./afterinstall.sh
+      timeout: 200
+      runas: ubuntu
+  
